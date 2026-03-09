@@ -250,7 +250,7 @@ function QualifiedChart({ leads }: { leads: Lead[] }) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => [`${value} leads`, '']}
+                formatter={(value) => [`${value} leads`, '']}
               />
             </PieChart>
           </div>
@@ -433,7 +433,7 @@ function LeadStatusBarChart({ leads }: { leads: Lead[] }) {
               border: '1px solid #EEEEEE',
               fontSize: '12px',
             }}
-            formatter={(value: number) => [value, 'Leads']}
+            formatter={(value) => [value, 'Leads']}
           />
           <Bar dataKey="count" radius={[4, 4, 0, 0]}>
             {data.map((entry, index) => (
