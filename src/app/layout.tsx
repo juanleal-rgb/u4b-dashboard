@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "U4B Dashboard | Uber for Business",
   description: "Automated calling system dashboard for Uber for Business",
+  icons: {
+    icon: "/vercel.svg",
+  },
 };
 
 export default function RootLayout({
