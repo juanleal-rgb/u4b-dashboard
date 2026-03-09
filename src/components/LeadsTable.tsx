@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Timer,
   Filter,
+  ExternalLink,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { Lead, CallRecord, CallStatus } from '@/lib/api';
@@ -107,13 +108,27 @@ function CallHistoryRow({ call }: { call: CallRecord }) {
         {formatDate(call.createdAt)}
       </div>
 
-      {/* Summary - full width below */}
-      {call.summary && (
-        <div className="col-span-6 mt-2">
-          <div className="flex items-start gap-2 bg-white rounded-lg px-3 py-2 border border-uber-gray-200">
-            <MessageSquare className="w-3.5 h-3.5 text-uber-gray-400 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-uber-gray-600 leading-relaxed">{call.summary}</p>
-          </div>
+      {/* Summary + call link - full width below */}
+      {(call.summary || call.callUrl) && (
+        <div className="col-span-6 mt-2 flex flex-col gap-1.5">
+          {call.summary && (
+            <div className="flex items-start gap-2 bg-white rounded-lg px-3 py-2 border border-uber-gray-200">
+              <MessageSquare className="w-3.5 h-3.5 text-uber-gray-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-uber-gray-600 leading-relaxed">{call.summary}</p>
+            </div>
+          )}
+          {call.callUrl && (
+            <a
+              href={call.callUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
+              onClick={e => e.stopPropagation()}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              View call
+            </a>
+          )}
         </div>
       )}
     </div>

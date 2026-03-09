@@ -31,6 +31,7 @@ export interface CallRecord {
   summary: string;
   attempt: number;
   duration: number;
+  callUrl: string | null;
   createdAt: string;
 }
 

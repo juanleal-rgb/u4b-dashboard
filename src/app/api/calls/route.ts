@@ -43,6 +43,7 @@ export async function GET(request: Request) {
         summary,
         attempt,
         duration,
+        call_url AS "callUrl",
         created_at AS "createdAt"
       FROM calls
     `;
@@ -71,6 +72,7 @@ export async function GET(request: Request) {
       summary: row.summary ?? '',
       attempt: row.attempt,
       duration: row.duration,
+      callUrl: row.callUrl ?? null,
       createdAt: new Date(row.createdAt).toISOString(),
     }));
 

@@ -30,8 +30,11 @@ export async function initDb(): Promise<void> {
       summary     TEXT         DEFAULT '',
       attempt     INTEGER      DEFAULT 1,
       duration    INTEGER      DEFAULT 0,
+      call_url    TEXT,
       created_at  TIMESTAMPTZ  DEFAULT NOW()
     );
+
+    ALTER TABLE calls ADD COLUMN IF NOT EXISTS call_url TEXT;
 
     CREATE INDEX IF NOT EXISTS idx_calls_phone ON calls(phone);
     CREATE INDEX IF NOT EXISTS idx_calls_created_at ON calls(created_at DESC);
