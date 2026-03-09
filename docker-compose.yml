@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: u4b_dashboard
+      POSTGRES_USER: u4b
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-u4bpassword}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U u4b -d u4b_dashboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - DATABASE_URL=postgresql://u4b:${POSTGRES_PASSWORD:-u4bpassword}@postgres:5432/u4b_dashboard
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+      - RUNS_START_DATE=${RUNS_START_DATE}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
