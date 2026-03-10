@@ -156,10 +156,10 @@ export function computeStats(calls: CallRecord[]): DashboardStats {
     calls.filter(c => c.status === 'Meeting scheduled').map(c => c.phone)
   ).size;
   const meetingRate = totalLeads > 0 ? (meetingsScheduled / totalLeads) * 100 : 0;
-  const callsWithDuration = calls.filter(c => c.duration > 0);
+  const contactedCalls = calls.filter(c => c.duration > 0 && c.status !== 'Voicemail' && c.status !== 'Hang up');
   const avgDuration =
-    callsWithDuration.length > 0
-      ? callsWithDuration.reduce((sum, c) => sum + c.duration, 0) / callsWithDuration.length
+    contactedCalls.length > 0
+      ? contactedCalls.reduce((sum, c) => sum + c.duration, 0) / contactedCalls.length
       : 0;
 
   return {

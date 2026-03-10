@@ -509,10 +509,10 @@ export function AnalyzeDashboard({ calls, leads, stats, loading }: AnalyzeDashbo
         <KPICard
           title="Avg Call Duration"
           value={formatDuration(Math.round(avgDuration))}
-          subtitle="Across all answered calls"
+          subtitle="Excluding voicemail & hang ups"
           icon={Timer}
           color="purple"
-          tooltip="Average duration of calls with duration > 0"
+          tooltip="Average duration of contacted calls (excludes Voicemail and Hang up)"
         />
       </div>
 
