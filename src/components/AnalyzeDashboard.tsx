@@ -101,20 +101,20 @@ function KPICard({
   );
 }
 
-// Status breakdown horizontal bar chart
-function StatusChart({ calls }: { calls: CallRecord[] }) {
+// Status breakdown horizontal bar chart — one count per partner (lead), based on latest status
+function StatusChart({ leads }: { leads: Lead[] }) {
   const counts = useMemo(() => {
     const result: Record<CallStatus, number> = {} as Record<CallStatus, number>;
     for (const s of ALL_STATUSES) result[s] = 0;
-    for (const call of calls) {
-      if (result[call.status as CallStatus] !== undefined) {
-        result[call.status as CallStatus]++;
+    for (const lead of leads) {
+      if (result[lead.latestStatus] !== undefined) {
+        result[lead.latestStatus]++;
       }
     }
     return result;
-  }, [calls]);
+  }, [leads]);
 
-  const total = calls.length;
+  const total = leads.length;
   const maxCount = Math.max(...Object.values(counts), 1);
 
   // Group into positive / follow-up / negative
@@ -185,7 +185,7 @@ function StatusChart({ calls }: { calls: CallRecord[] }) {
   return (
     <div className="bg-white rounded-xl border border-uber-gray-100 p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-uber-black">Call Status Breakdown</h3>
+        <h3 className="text-sm font-semibold text-uber-black">Partner Status Breakdown</h3>
         {total > 0 && (
           <div className="flex items-center gap-3 text-xs">
             <span className="text-green-600 font-medium">{totalPositive} meetings</span>
@@ -198,7 +198,7 @@ function StatusChart({ calls }: { calls: CallRecord[] }) {
       </div>
 
       {total === 0 ? (
-        <p className="text-sm text-uber-gray-400 text-center py-8">No calls in selected period</p>
+        <p className="text-sm text-uber-gray-400 text-center py-8">No partners in selected period</p>
       ) : (
         <div className="space-y-4">
           {renderGroup(positiveStatuses, 'Meetings Scheduled', 'text-green-600')}
@@ -518,7 +518,7 @@ export function AnalyzeDashboard({ calls, leads, stats, loading }: AnalyzeDashbo
 
       {/* Charts grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <StatusChart calls={calls} />
+        <StatusChart leads={leads} />
         <QualifiedChart leads={leads} />
         <CallsTrendChart calls={calls} />
         <LeadStatusBarChart leads={leads} />
