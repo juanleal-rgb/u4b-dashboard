@@ -35,6 +35,7 @@ export async function initDb(): Promise<void> {
     );
 
     ALTER TABLE calls ADD COLUMN IF NOT EXISTS call_url TEXT;
+    ALTER TABLE calls ADD COLUMN IF NOT EXISTS country VARCHAR(2) NOT NULL DEFAULT 'ES';
 
     CREATE INDEX IF NOT EXISTS idx_calls_phone ON calls(phone);
     CREATE INDEX IF NOT EXISTS idx_calls_created_at ON calls(created_at DESC);

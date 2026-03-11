@@ -19,6 +19,7 @@ import {
 import { LeadsTable } from '@/components/LeadsTable';
 import { AnalyzeDashboard } from '@/components/AnalyzeDashboard';
 import type { Lead, CallRecord, DashboardStats } from '@/lib/api';
+import { groupCallsIntoLeads, computeStats } from '@/lib/api';
 
 // Toast notification type
 interface Toast {
@@ -33,11 +34,13 @@ interface CallsResponse {
   leads: Lead[];
   calls: CallRecord[];
   stats: DashboardStats;
+  globalMinDate?: string | null;
   error?: string;
   missing?: string[];
 }
 
 type TabView = 'monitor' | 'analyze';
+type CountryFilter = 'ES' | 'UK' | 'Both';
 
 // Toast notification component
 function ToastNotification({ toast, onClose }: { toast: Toast; onClose: () => void }) {
@@ -190,6 +193,9 @@ export default function Dashboard() {
   // Tab navigation - default to Analyze
   const [activeTab, setActiveTab] = useState<TabView>('analyze');
 
+  // Country filter
+  const [countryFilter, setCountryFilter] = useState<CountryFilter>('Both');
+
   const handleTabChange = useCallback((tab: TabView) => {
     setActiveTab(tab);
     setSelectedWeekIndex(tab === 'analyze' ? 0 : 1);
@@ -205,10 +211,12 @@ export default function Dashboard() {
 
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number>(0);
   const [configStartDate, setConfigStartDate] = useState<string>('2026-01-01');
+  const [globalMinDate, setGlobalMinDate] = useState<string | null>(null);
 
   const weeks = useMemo(() => {
     const weeksList: { label: string; start: string; end: string; isSpecial?: boolean }[] = [];
     const now = new Date();
+    const today = now.toISOString().split('T')[0];
 
     const getMonday = (date: Date) => {
       const d = new Date(date);
@@ -219,14 +227,12 @@ export default function Dashboard() {
       return d;
     };
 
-    // All time
-    const dataStartDate = new Date(configStartDate);
-    const dataStartMonday = getMonday(dataStartDate);
-    const endOfYear = new Date(now.getFullYear(), 11, 31);
+    // All time: start from first real call date (or configStartDate fallback), end today
+    const allTimeStart = globalMinDate ?? configStartDate;
     weeksList.push({
       label: 'All time',
-      start: dataStartMonday.toISOString().split('T')[0],
-      end: endOfYear.toISOString().split('T')[0],
+      start: allTimeStart,
+      end: today,
       isSpecial: true,
     });
 
@@ -253,7 +259,8 @@ export default function Dashboard() {
       isSpecial: true,
     });
 
-    // Older weeks from config start date
+    // Older weeks from first call date (or config start date)
+    const dataStartMonday = getMonday(new Date(globalMinDate ?? configStartDate));
     const twoWeeksAgoMonday = new Date(thisWeekMonday);
     twoWeeksAgoMonday.setDate(twoWeeksAgoMonday.getDate() - 14);
     const current = new Date(twoWeeksAgoMonday);
@@ -272,7 +279,7 @@ export default function Dashboard() {
     }
 
     return weeksList;
-  }, [configStartDate]);
+  }, [configStartDate, globalMinDate]);
 
   const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = Math.random().toString(36).slice(2);
@@ -309,6 +316,7 @@ export default function Dashboard() {
       }
 
       setData(result);
+      if (result.globalMinDate) setGlobalMinDate(result.globalMinDate);
       setLastUpdated(new Date());
       isFirstLoad.current = false;
     } catch (err) {
@@ -356,6 +364,17 @@ export default function Dashboard() {
     }
   }, [error, addToast]);
 
+  const allCalls = data?.calls ?? [];
+
+  const filteredCalls = useMemo(() => {
+    if (countryFilter === 'Both') return allCalls;
+    return allCalls.filter(c => c.country === countryFilter);
+  }, [allCalls, countryFilter]);
+
+  const leads = useMemo(() => groupCallsIntoLeads(filteredCalls), [filteredCalls]);
+  const calls = filteredCalls;
+  const stats = useMemo(() => computeStats(filteredCalls), [filteredCalls]);
+
   if (isAuthenticated === null) {
     return (
       <div className="min-h-screen bg-uber-black flex items-center justify-center">
@@ -368,16 +387,12 @@ export default function Dashboard() {
     return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
   }
 
-  const leads = data?.leads ?? [];
-  const calls = data?.calls ?? [];
-  const stats = data?.stats;
-
   return (
     <div className="min-h-screen bg-uber-gray-50">
       {/* Header */}
       <header className="bg-uber-black">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 gap-4">
             {/* Left: Logo + Title */}
             <div className="flex items-center gap-4">
               <Image
@@ -411,11 +426,32 @@ export default function Dashboard() {
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
               </div>
-              <span className="text-white/60 text-sm">
+              <span className="text-white/60 text-sm whitespace-nowrap">
                 {new Date(dateRange.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 {' – '}
                 {new Date(dateRange.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
+            </div>
+
+            {/* Country Filter */}
+            <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
+              {([
+                { value: 'ES', label: '🇪🇸 Spain' },
+                { value: 'UK', label: '🇬🇧 UK' },
+                { value: 'Both', label: '🌍 Both' },
+              ] as { value: CountryFilter; label: string }[]).map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setCountryFilter(value)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                    countryFilter === value
+                      ? 'bg-white text-uber-black'
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             {/* Center: Tabs */}
@@ -505,7 +541,7 @@ export default function Dashboard() {
 
         {/* Tab Content */}
         {activeTab === 'monitor' ? (
-          <LeadsTable leads={leads} loading={loading} />
+          <LeadsTable leads={leads} loading={loading} showCountry={countryFilter === 'Both'} />
         ) : (
           <div className="space-y-6">
             <h2 className="text-lg font-semibold text-uber-black">Analytics Overview</h2>

@@ -33,6 +33,7 @@ export interface CallRecord {
   duration: number;
   callUrl: string | null;
   createdAt: string;
+  country: string;
 }
 
 export interface Lead {
@@ -46,6 +47,7 @@ export interface Lead {
   isQualified: boolean;
   hasMeeting: boolean;
   leadCategory: LeadCategory;
+  country: string;
 }
 
 export interface DashboardStats {
@@ -132,6 +134,7 @@ export function groupCallsIntoLeads(calls: CallRecord[]): Lead[] {
       isQualified,
       hasMeeting,
       leadCategory: bestCategory,
+      country: latest.country ?? 'ES',
     });
   });
 

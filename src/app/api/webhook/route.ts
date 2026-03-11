@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
-    const { phone, name, company, status, qualified, meeting, summary, attempt, duration, call_url } = body;
+    const { phone, name, company, status, qualified, meeting, summary, attempt, duration, call_url, country } = body;
 
     // Validate required fields
     if (!phone || typeof phone !== 'string') {
@@ -68,8 +68,8 @@ export async function POST(request: Request) {
     const db = getPool();
 
     const result = await db.query(
-      `INSERT INTO calls (phone, name, company, status, qualified, meeting, summary, attempt, duration, call_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO calls (phone, name, company, status, qualified, meeting, summary, attempt, duration, call_url, country)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING id`,
       [
         phone.trim(),
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
         parseInt2(attempt),
         parseInt2(duration),
         call_url ? String(call_url).trim() : null,
+        country ? String(country).toUpperCase().trim() : 'ES',
       ]
     );
 

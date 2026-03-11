@@ -135,8 +135,13 @@ function CallHistoryRow({ call }: { call: CallRecord }) {
   );
 }
 
+function CountryFlag({ country }: { country: string }) {
+  const flag = country === 'UK' ? '🇬🇧' : '🇪🇸';
+  return <span className="text-base leading-none" title={country}>{flag}</span>;
+}
+
 // Lead row (expandable)
-function LeadRow({ lead }: { lead: Lead }) {
+function LeadRow({ lead, showCountry }: { lead: Lead; showCountry?: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
   const latestMeeting = lead.calls.find(c => c.meeting)?.meeting;
@@ -160,6 +165,7 @@ function LeadRow({ lead }: { lead: Lead }) {
             <span className="font-medium text-uber-black truncate">
               {lead.company ?? <span className="text-uber-gray-400 italic">Unknown company</span>}
             </span>
+            {showCountry && <CountryFlag country={lead.country} />}
           </div>
           {lead.name && (
             <div className="flex items-center gap-2 mt-1">
@@ -233,9 +239,10 @@ function LeadRow({ lead }: { lead: Lead }) {
 interface LeadsTableProps {
   leads: Lead[];
   loading?: boolean;
+  showCountry?: boolean;
 }
 
-export function LeadsTable({ leads, loading }: LeadsTableProps) {
+export function LeadsTable({ leads, loading, showCountry }: LeadsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CallStatus | 'all'>('all');
   const [qualifiedFilter, setQualifiedFilter] = useState<'all' | 'qualified' | 'not_qualified'>('all');
@@ -356,7 +363,7 @@ export function LeadsTable({ leads, loading }: LeadsTableProps) {
           </p>
         </div>
       ) : (
-        filteredLeads.map(lead => <LeadRow key={lead.phone} lead={lead} />)
+        filteredLeads.map(lead => <LeadRow key={lead.phone} lead={lead} showCountry={showCountry} />)
       )}
     </div>
   );

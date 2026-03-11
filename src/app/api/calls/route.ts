@@ -44,7 +44,8 @@ export async function GET(request: Request) {
         attempt,
         duration,
         call_url AS "callUrl",
-        created_at AS "createdAt"
+        created_at AS "createdAt",
+        country
       FROM calls
     `;
     const params: (string | undefined)[] = [];
@@ -74,12 +75,19 @@ export async function GET(request: Request) {
       duration: row.duration,
       callUrl: row.callUrl ?? null,
       createdAt: new Date(row.createdAt).toISOString(),
+      country: row.country ?? 'ES',
     }));
 
     const leads = groupCallsIntoLeads(calls);
     const stats = computeStats(calls);
 
-    return NextResponse.json({ leads, stats, calls });
+    // Get the earliest call date across ALL calls (unfiltered) for the "All time" range
+    const minResult = await db.query(`SELECT MIN(created_at) AS min_date FROM calls`);
+    const globalMinDate: string | null = minResult.rows[0]?.min_date
+      ? new Date(minResult.rows[0].min_date).toISOString().split('T')[0]
+      : null;
+
+    return NextResponse.json({ leads, stats, calls, globalMinDate });
   } catch (error) {
     console.error('Error fetching calls:', error);
     return NextResponse.json(
