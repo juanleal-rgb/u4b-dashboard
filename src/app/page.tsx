@@ -15,6 +15,7 @@ import {
   Lock,
   ChevronDown,
   Calendar,
+  Zap,
 } from 'lucide-react';
 import { LeadsTable } from '@/components/LeadsTable';
 import { AnalyzeDashboard } from '@/components/AnalyzeDashboard';
@@ -41,6 +42,7 @@ interface CallsResponse {
 
 type TabView = 'monitor' | 'analyze';
 type CountryFilter = 'ES' | 'UK' | 'Both';
+
 
 // Toast notification component
 function ToastNotification({ toast, onClose }: { toast: Toast; onClose: () => void }) {
@@ -87,13 +89,12 @@ function ToastContainer({ toasts, removeToast }: { toasts: Toast[]; removeToast:
 }
 
 // Login Screen Component
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
+function LoginScreen({ onLogin }: { onLogin: (role: string) => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setLoading(true);
     setError('');
 
@@ -108,7 +109,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
       if (data.success) {
         localStorage.setItem('dashboard_auth', 'true');
-        onLogin();
+        localStorage.setItem('dashboard_role', data.role ?? 'viewer');
+        onLogin(data.role ?? 'viewer');
       } else {
         setError('Invalid password');
       }
@@ -142,24 +144,24 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <p className="text-sm text-uber-gray-500 mt-1">Enter password to access the dashboard</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full px-4 py-3 border border-uber-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-uber-green focus:border-transparent text-uber-black placeholder:text-uber-gray-400"
-              autoFocus
-            />
-          </div>
+        <div className="space-y-4">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !loading && password && handleSubmit()}
+            placeholder="Password"
+            autoComplete="off"
+            className="w-full px-4 py-3 border border-uber-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-uber-green focus:border-transparent text-uber-black placeholder:text-uber-gray-400"
+            autoFocus
+          />
 
           {error && (
             <p className="text-red-500 text-sm text-center">{error}</p>
           )}
 
           <button
-            type="submit"
+            onClick={handleSubmit}
             disabled={loading || !password}
             className="w-full py-3 bg-uber-black text-white rounded-lg font-medium hover:bg-uber-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
@@ -172,7 +174,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               'Access Dashboard'
             )}
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -181,6 +183,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 export default function Dashboard() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [data, setData] = useState<CallsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -195,6 +198,10 @@ export default function Dashboard() {
 
   // Country filter
   const [countryFilter, setCountryFilter] = useState<CountryFilter>('Both');
+
+  // Batch launch
+  const [launchingBatch, setLaunchingBatch] = useState(false);
+  const [showBatchDropdown, setShowBatchDropdown] = useState(false);
 
   const handleTabChange = useCallback((tab: TabView) => {
     setActiveTab(tab);
@@ -286,6 +293,32 @@ export default function Dashboard() {
     setToasts(prev => [...prev, { ...toast, id }]);
   }, []);
 
+  const launchBatch = useCallback(async (country: 'ES' | 'UK') => {
+    setShowBatchDropdown(false);
+    setLaunchingBatch(true);
+    try {
+      const res = await fetch('/api/launch-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ country }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        addToast({ type: 'error', title: 'Launch failed', message: data.error ?? 'Unknown error' });
+      } else {
+        addToast({
+          type: 'success',
+          title: 'Batch launched',
+          message: `${country === 'ES' ? '🇪🇸 Spain' : '🇬🇧 UK'} batch started successfully`,
+        });
+      }
+    } catch {
+      addToast({ type: 'error', title: 'Launch failed', message: 'Could not reach the server' });
+    } finally {
+      setLaunchingBatch(false);
+    }
+  }, [addToast]);
+
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
@@ -293,7 +326,9 @@ export default function Dashboard() {
   // Check authentication on mount
   useEffect(() => {
     const auth = localStorage.getItem('dashboard_auth');
+    const role = localStorage.getItem('dashboard_role');
     setIsAuthenticated(auth === 'true');
+    setIsAdmin(role === 'admin');
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -384,138 +419,165 @@ export default function Dashboard() {
   }
 
   if (!isAuthenticated) {
-    return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+    return <LoginScreen onLogin={(role) => { setIsAuthenticated(true); setIsAdmin(role === 'admin'); }} />;
   }
 
   return (
     <div className="min-h-screen bg-uber-gray-50">
       {/* Header */}
       <header className="bg-uber-black">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between h-16 gap-4">
-            {/* Left: Logo + Title */}
-            <div className="flex items-center gap-4">
-              <Image
-                src="https://media.licdn.com/dms/image/v2/C4D0BAQG09E_9m95YQQ/company-logo_200_200/company-logo_200_200/0/1630492686215/uber_for_business_logo?e=2147483647&v=beta&t=BYn3QunRRwNP7dD0vE5Bw2kD7xKgEbPNeIN8V7GHRqA"
-                alt="Uber for Business"
-                width={36}
-                height={36}
-                className="h-9 w-9 rounded-lg object-cover"
-                unoptimized
-              />
-              <div className="h-6 w-px bg-white/20" />
-              <span className="text-white font-medium">
-                U4B Dashboard
-              </span>
-            </div>
+        <div className="px-6 h-16 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
 
-            {/* Week Filter Dropdown */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
-                <select
-                  value={selectedWeekIndex}
-                  onChange={(e) => setSelectedWeekIndex(parseInt(e.target.value))}
-                  className="appearance-none bg-white/10 text-white text-sm pl-9 pr-8 py-1.5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-uber-green/50"
-                >
-                  {weeks.map((week, index) => (
-                    <option key={index} value={index} className="text-uber-black bg-white">
-                      {week.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
-              </div>
-              <span className="text-white/60 text-sm whitespace-nowrap">
-                {new Date(dateRange.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                {' – '}
-                {new Date(dateRange.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </span>
-            </div>
+          {/* LEFT: Logo + Title */}
+          <div className="flex items-center gap-3 min-w-0">
+            <Image
+              src="https://media.licdn.com/dms/image/v2/C4D0BAQG09E_9m95YQQ/company-logo_200_200/company-logo_200_200/0/1630492686215/uber_for_business_logo?e=2147483647&v=beta&t=BYn3QunRRwNP7dD0vE5Bw2kD7xKgEbPNeIN8V7GHRqA"
+              alt="Uber for Business"
+              width={36}
+              height={36}
+              className="h-9 w-9 rounded-lg object-cover flex-none"
+              unoptimized
+            />
+            <div className="h-6 w-px bg-white/20 flex-none" />
+            <span className="text-white font-medium whitespace-nowrap">U4B Dashboard</span>
+          </div>
 
-            {/* Country Filter */}
+          {/* CENTER: Country filter + Tabs */}
+          <div className="flex items-center gap-2">
+            {/* Country pills */}
             <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
               {([
-                { value: 'ES', label: '🇪🇸 Spain' },
-                { value: 'UK', label: '🇬🇧 UK' },
-                { value: 'Both', label: '🌍 Both' },
-              ] as { value: CountryFilter; label: string }[]).map(({ value, label }) => (
+                { value: 'ES', full: '🇪🇸 Spain', short: '🇪🇸' },
+                { value: 'UK', full: '🇬🇧 UK',    short: '🇬🇧' },
+                { value: 'Both', full: '🌍 Both',  short: '🌍' },
+              ] as { value: CountryFilter; full: string; short: string }[]).map(({ value, full, short }) => (
                 <button
                   key={value}
                   onClick={() => setCountryFilter(value)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-                    countryFilter === value
-                      ? 'bg-white text-uber-black'
-                      : 'text-white/70 hover:text-white'
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    countryFilter === value ? 'bg-white text-uber-black' : 'text-white/70 hover:text-white'
                   }`}
                 >
-                  {label}
+                  <span className="hidden lg:inline">{full}</span>
+                  <span className="lg:hidden">{short}</span>
                 </button>
               ))}
             </div>
 
-            {/* Center: Tabs */}
+            <div className="h-5 w-px bg-white/20" />
+
+            {/* Tabs */}
             <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
               <button
                 onClick={() => handleTabChange('analyze')}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'analyze'
-                    ? 'bg-white text-uber-black'
-                    : 'text-white/70 hover:text-white'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  activeTab === 'analyze' ? 'bg-white text-uber-black' : 'text-white/70 hover:text-white'
                 }`}
               >
                 <BarChart2 className="w-4 h-4" />
-                Analyze
+                <span className="hidden sm:inline">Analyze</span>
               </button>
               <button
                 onClick={() => handleTabChange('monitor')}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'monitor'
-                    ? 'bg-white text-uber-black'
-                    : 'text-white/70 hover:text-white'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  activeTab === 'monitor' ? 'bg-white text-uber-black' : 'text-white/70 hover:text-white'
                 }`}
               >
                 <Eye className="w-4 h-4" />
-                Monitor
-              </button>
-            </div>
-
-            {/* Right: Live indicator + Refresh */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-uber-green opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-uber-green" />
-                </span>
-                <span className="text-xs text-white/70">LIVE</span>
-                {lastUpdated && (
-                  <span className="text-xs text-white/40">
-                    {lastUpdated.toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                    })}
-                  </span>
-                )}
-              </div>
-
-              {stats && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg">
-                  <span className="text-xs text-white/60">
-                    {stats.totalCalls} calls · {stats.totalLeads} leads
-                  </span>
-                </div>
-              )}
-
-              <button
-                onClick={fetchData}
-                disabled={loading}
-                className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Monitor</span>
               </button>
             </div>
           </div>
+
+          {/* RIGHT: Week filter + Launch Batch + Live + Refresh */}
+          <div className="flex items-center gap-2 justify-end">
+
+            {/* Week select */}
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
+              <select
+                value={selectedWeekIndex}
+                onChange={(e) => setSelectedWeekIndex(parseInt(e.target.value))}
+                className="appearance-none bg-white/10 text-white text-sm pl-9 pr-8 py-1.5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-uber-green/50"
+              >
+                {weeks.map((week, index) => (
+                  <option key={index} value={index} className="text-uber-black bg-white">
+                    {week.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
+            </div>
+
+            {/* Date range label — hidden below xl */}
+            <span className="text-white/60 text-xs whitespace-nowrap hidden xl:inline">
+              {new Date(dateRange.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {' – '}
+              {new Date(dateRange.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+
+            <div className="h-5 w-px bg-white/20" />
+
+            {/* Launch Batch — admin only */}
+            <div className="relative" title={!isAdmin ? 'Admin access required to launch batches' : undefined}>
+              {countryFilter !== 'Both' ? (
+                <button
+                  onClick={() => launchBatch(countryFilter as 'ES' | 'UK')}
+                  disabled={launchingBatch || !isAdmin}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-uber-green hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
+                >
+                  {launchingBatch ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                  <span className="hidden md:inline">Launch Batch</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => isAdmin && setShowBatchDropdown(v => !v)}
+                    disabled={launchingBatch || !isAdmin}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-uber-green hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
+                  >
+                    {launchingBatch ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                    <span className="hidden md:inline">Launch Batch</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  {showBatchDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowBatchDropdown(false)} />
+                      <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-uber-gray-200 py-1 z-50 min-w-[140px]">
+                        <button onClick={() => launchBatch('ES')} className="w-full text-left px-4 py-2 text-sm text-uber-black hover:bg-uber-gray-50 flex items-center gap-2 cursor-pointer">
+                          🇪🇸 Spain
+                        </button>
+                        <button onClick={() => launchBatch('UK')} className="w-full text-left px-4 py-2 text-sm text-uber-black hover:bg-uber-gray-50 flex items-center gap-2 cursor-pointer">
+                          🇬🇧 UK
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="h-5 w-px bg-white/20" />
+
+            {/* Live indicator */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 rounded-lg">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-uber-green opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-uber-green" />
+              </span>
+              <span className="text-xs text-white/70">LIVE</span>
+            </div>
+
+            {/* Refresh */}
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
         </div>
       </header>
 
