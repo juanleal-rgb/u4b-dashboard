@@ -468,8 +468,8 @@ export function AnalyzeDashboard({ calls, leads, stats, loading }: AnalyzeDashbo
   const totalLeads = stats?.totalLeads ?? leads.length;
   const qualifiedLeads = stats?.qualifiedLeads ?? leads.filter(l => l.isQualified).length;
   const qualifiedRate = stats?.qualifiedRate ?? (totalLeads > 0 ? (qualifiedLeads / totalLeads) * 100 : 0);
-  const meetingsScheduled = stats?.meetingsScheduled ?? leads.filter(l => l.hasMeeting).length;
-  const meetingRate = stats?.meetingRate ?? (totalLeads > 0 ? (meetingsScheduled / totalLeads) * 100 : 0);
+  const sendInfoLeads = new Set(calls.filter(c => c.status === 'Send information').map(c => c.phone)).size;
+  const sendInfoRate = totalLeads > 0 ? (sendInfoLeads / totalLeads) * 100 : 0;
   const avgDuration = stats?.avgDuration ?? 0;
 
   return (
@@ -499,12 +499,12 @@ export function AnalyzeDashboard({ calls, leads, stats, loading }: AnalyzeDashbo
           tooltip="Leads where at least one call was marked qualified=true"
         />
         <KPICard
-          title="Meetings Scheduled"
-          value={`${meetingsScheduled}`}
-          subtitle={`${meetingRate.toFixed(1)}% meeting rate`}
-          icon={Calendar}
+          title="Send Information"
+          value={`${sendInfoLeads}`}
+          subtitle={`${sendInfoRate.toFixed(1)}% of leads`}
+          icon={Info}
           color="amber"
-          tooltip="Leads with at least one call with status 'Meeting scheduled'"
+          tooltip="Leads with at least one call with status 'Send information'"
         />
         <KPICard
           title="Avg Call Duration"
