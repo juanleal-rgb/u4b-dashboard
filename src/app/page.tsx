@@ -41,7 +41,7 @@ interface CallsResponse {
 }
 
 type TabView = 'monitor' | 'analyze';
-type CountryFilter = 'ES' | 'UK' | 'Both';
+type CountryFilter = 'ES' | 'US' | 'Both';
 
 
 // Toast notification component
@@ -293,7 +293,7 @@ export default function Dashboard() {
     setToasts(prev => [...prev, { ...toast, id }]);
   }, []);
 
-  const launchBatch = useCallback(async (country: 'ES' | 'UK') => {
+  const launchBatch = useCallback(async (country: 'ES' | 'US') => {
     setShowBatchDropdown(false);
     setLaunchingBatch(true);
     try {
@@ -309,7 +309,7 @@ export default function Dashboard() {
         addToast({
           type: 'success',
           title: 'Batch launched',
-          message: `${country === 'ES' ? '🇪🇸 Spain' : '🇬🇧 UK'} batch started successfully`,
+          message: `${country === 'ES' ? '🇪🇸 Spain' : '🇺🇸 US'} batch started successfully`,
         });
       }
     } catch {
@@ -448,7 +448,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
               {([
                 { value: 'ES', full: '🇪🇸 Spain', short: '🇪🇸' },
-                { value: 'UK', full: '🇬🇧 UK',    short: '🇬🇧' },
+                { value: 'US', full: '🇺🇸 US',    short: '🇺🇸' },
                 { value: 'Both', full: '🌍 Both',  short: '🌍' },
               ] as { value: CountryFilter; full: string; short: string }[]).map(({ value, full, short }) => (
                 <button
@@ -522,7 +522,7 @@ export default function Dashboard() {
             <div className="relative" title={!isAdmin ? 'Admin access required to launch batches' : undefined}>
               {countryFilter !== 'Both' ? (
                 <button
-                  onClick={() => launchBatch(countryFilter as 'ES' | 'UK')}
+                  onClick={() => launchBatch(countryFilter as 'ES' | 'US')}
                   disabled={launchingBatch || !isAdmin}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-uber-green hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
                 >
@@ -547,8 +547,8 @@ export default function Dashboard() {
                         <button onClick={() => launchBatch('ES')} className="w-full text-left px-4 py-2 text-sm text-uber-black hover:bg-uber-gray-50 flex items-center gap-2 cursor-pointer">
                           🇪🇸 Spain
                         </button>
-                        <button onClick={() => launchBatch('UK')} className="w-full text-left px-4 py-2 text-sm text-uber-black hover:bg-uber-gray-50 flex items-center gap-2 cursor-pointer">
-                          🇬🇧 UK
+                        <button onClick={() => launchBatch('US')} className="w-full text-left px-4 py-2 text-sm text-uber-black hover:bg-uber-gray-50 flex items-center gap-2 cursor-pointer">
+                          🇺🇸 US
                         </button>
                       </div>
                     </>

@@ -136,7 +136,7 @@ function CallHistoryRow({ call }: { call: CallRecord }) {
 }
 
 function CountryFlag({ country }: { country: string }) {
-  const flag = country === 'UK' ? '🇬🇧' : '🇪🇸';
+  const flag = country === 'US' ? '🇺🇸' : '🇪🇸';
   return <span className="text-base leading-none" title={country}>{flag}</span>;
 }
 

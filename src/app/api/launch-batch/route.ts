@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const BATCH_URLS: Record<string, string> = {
   ES: 'https://workflows.platform.happyrobot.ai/hooks/53s0j8nzi5bv',
-  UK: 'https://workflows.platform.happyrobot.ai/hooks/1o5pwwt58wgk',
+  US: 'https://workflows.platform.happyrobot.ai/hooks/1o5pwwt58wgk',
 };
 
 export async function POST(request: NextRequest) {
